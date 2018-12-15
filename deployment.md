@@ -31,8 +31,15 @@ It is anticipated that packages that have a clearly defined purpose (most npm mo
 
 ## What if a package has no declaration?
 
+There is a balance to be found between security and ergonomics and this balance can evolve over time and be different from context to context
+
+Running no-declaration packages with zero privilege offers maximum security but will make them often useless and prevent our app from running
+Running no-declaration packages with all privileges allows for apps that depend on it to run with no different preserves the risks of today
+
 To create as little friction as possible, the loader would run the package with full access\
-An opt-in could decide to run the package with zero capabilities, or a default set considered safe (safer than the current full-access situation)
+An opt-in could run the same package with zero capabilities, or a default set considered safe (safer than the current full-access situation)
+
+This would still be better than the current situation since there would be less security risks from package that declare what they want to access
 
 Tooling like `npm audit` could analyse all the dependency tree of a project and alert about packages that have no declaration
 
@@ -48,7 +55,7 @@ If there is interest, this work can be embedded in node.js or npm/tink as defaul
 
 ## Timeline
 
-We start with zero such declarations
+We start with access declarations on zero packages
 
 Over time, more declarations are added (in the packages or as a community effort) and less packages come with no declarations
 
