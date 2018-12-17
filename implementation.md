@@ -31,7 +31,7 @@ Even if this is still experimental, the [Node.js support for ESM allows for hook
 
 On the side of confinment, there exists things like [Caja](https://developers.google.com/caja/) which loads an arbitrary JS, but with reduced capabilities
 
-For an MVP, i would start with forking `esm` and write a custom [loader](https://github.com/standard-things/esm/blob/53e209aac5b8de8e6d54bcd6e5dcd8b7ff8bfa50/src/module/cjs/loader.js) that loads the declaration of a package and loads it confined Caja-style
+For an MVP, i would start with forking `esm` and write a custom [loader](https://github.com/standard-things/esm/blob/53e209aac5b8de8e6d54bcd6e5dcd8b7ff8bfa50/src/module/cjs/loader.js) that loads the declaration of a package and loads it confined Caja-style. Maybe something based on [`vm`'s `runInContext`](https://nodejs.org/dist/latest-v10.x/docs/api/vm.html#vm_script_runincontext_contextifiedsandbox_options)
 
 This work would need to be careful that modules in a package cannot escalate privileges and gain access to things it's not supposed to
 

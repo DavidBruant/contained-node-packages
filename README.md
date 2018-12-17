@@ -2,19 +2,21 @@
 
 ## Context
 
-[There is an accurate description of the problem](https://jakearchibald.com/2018/when-packages-go-bad/) by Jake Archibald. You may want to read it first as i'll be quoting from his post
+[There is an accurate description of the problem](https://jakearchibald.com/2018/when-packages-go-bad/) by [Jake Archibald](https://twitter.com/jaffathecake/). You may want to read it first as i'll be quoting from his post
 
 > When a module from a package is executed in a node context it has the same powers as the user that called `node`. This means it can do whatever you can do from the CLI
 
-It is the case, it has been since the beginning, this is inheriting the design of operating system where the OS gives all the powers of a user to any program this user has started. This was a reasonable design at a time any program you would run you was a program you had written all the source code of. It is an unreasonable design at a time where the program you execute on your machine was downloaded from the internet written as thousands of modules and hundreds authors you don't know
+It is the case. It has been since the beginning since the beginning of computing. This is inheriting the design of operating system where the OS gives all the powers of a user to any program this user has started. This was a reasonable design at a time any program you would run you was a program you had written all the source code of. It is an unreasonable design at a time where the program you execute on your machine was downloaded from the internet written as thousands of modules and hundreds authors you don't know
 
 > The remaining option is to **treat all npm packages as potentially hostile**, and that's kinda terrifying.
 
-I agree this idea may sound terrifying. However, as far as i'm concerned, this idea is much less terrifying than **treat all npm packages as trusted to read/write any file on my machine and access the network**
+I agree this idea may sound terrifying
+
+However, as far as i'm concerned, this idea is much less terrifying than **treat all npm packages as trusted to read/write any file on my machine and access the network**
 
 > With Copay, we've seen that attacks like this aren't theoretical, yet the auditing task feels insurmountable.
 
-The auditing task is un
+The auditing task is unsurmontable. Any solution to this problem should not require that much work
 
 
 ## The work
@@ -30,17 +32,19 @@ I admit this idea is a bit unsettling. In these posts, i'll be breaking common a
 
 - [Design](./design.md)
 - [Implementation](./implementation.md)
-- [Deployment](deployment.md)
+- [Deployment](./deployment.md)
 - Limitation to Node and expanding this idea to the browser
+
+
+### This is a solution
+
+From package.json (or package-lock.json), you know all the packages being loaded and from each package, know what each want to access. The idea doesn't end here, but for a start, it's easier to audit this list (on a per-package basis or aggregated) than it is to audit the entire source code. It is also easier to catch notable changes
+
+This declaration must be machine-readable for the custom loader to do anything useful, so tooling can also be built around it so it's even easier to review, to flag changes to the declaration you consider dangerous, etc.
+
 
 ## Licence
 
 Everything in this repo is CC0 licenced, because i love you
 
 but that's cool if you credit the people who worked on it too
-
-
-
-## TODO
-
-Credit Capabilities community and add links
