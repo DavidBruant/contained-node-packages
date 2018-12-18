@@ -36,11 +36,6 @@ I admit this idea is a bit unsettling. In these posts, i'll be breaking common a
 - Limitation to Node and expanding this idea to the browser
 
 
-### This is a solution
-
-From package.json (or package-lock.json), you know all the packages being loaded and from each package, know what each want to access. The idea doesn't end here, but for a start, it's easier to audit this list (on a per-package basis or aggregated) than it is to audit the entire source code. It is also easier to catch notable changes
-
-This declaration must be machine-readable for the custom loader to do anything useful, so tooling can also be built around it so it's even easier to review, to flag changes to the declaration you consider dangerous, etc.
 
 
 ## Licence
