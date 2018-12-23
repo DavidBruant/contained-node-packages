@@ -2,9 +2,9 @@
 
 Minimal Valuable Product for [Safe JavaScript Modules](https://docs.google.com/document/d/1pPiu3cjBT5OqEgqtsdDJcW5g1QsgmxvIHQjdkrPej3U/edit#)
 
-[Safe JavaScript Modules](https://docs.google.com/document/d/1pPiu3cjBT5OqEgqtsdDJcW5g1QsgmxvIHQjdkrPej3U/edit#) describes an ideal eventual situation. However, it does not provide a rollout plan.
+[Safe JavaScript Modules](https://docs.google.com/document/d/1pPiu3cjBT5OqEgqtsdDJcW5g1QsgmxvIHQjdkrPej3U/edit#) describes an ideal eventual situation. However, it does not yet provide a rollout plan.
 
-This repo aims at describing a minimal version that simultenouly:
+This repo aims at describing a minimal version that simultenously:
 - provides actual security benefits
 - demonstrates the benefits and potential of the approach
 - can be built today with minimal effort
@@ -19,49 +19,30 @@ The MVP must prevent another "[event-stream incident](https://blog.npmjs.org/pos
 As a reduction, the MVP will **only target Node.js apps**
 Other environments (client-side JavaScript, Electron, etc.) can be added later
 
-Part of what makes the attack bootstrap was that the malicious `flatmap-stream@0.1.1` was requiring `fs` while the package did not need it. So it looks like reducing capabilities at the **node.js built-in modules granularity** would already be a good start
+Part of what makes the attack bootstrap was that the malicious `flatmap-stream@0.1.1` was requiring `fs` while the package did not need it. So it looks like reducing capabilities at the **node.js built-in modules granularity** would already be a good start.
+Finer graularity can be added later
 
-npm packages can leak capabilities directly, so preventing a module from a package P to load another module from a package not listed in P's package.json would be a good addition to come right after
+npm packages can leak capabilities directly, so **preventing a module from a package P to load another module from a package not listed in P's package.json** will be part of the MVP as well
 
-npm packages can be led to leak capabilities via a prototype poisonning attack which is easy to write and likely to be very effective. Protecting against prototype poisonning attacks also feels to need to come right after 
+npm packages can be led to leak capabilities via a prototype poisonning attack which is easy to write and likely to be very effective. **Protecting against prototype poisonning attacks will also be part of the MVP**
 
 The MVP must be deployable **without asking anyone's permission**. It must work **without change** to Node.js or npm and work on currently supported versions of [Node.js](https://github.com/nodejs/Release#release-schedule) and corresponding npm versions
 
-The MVP should not require anyone to rewrite any code for security to be improved
+The MVP **should not require anyone to rewrite any code for security to be improved**
 
 
 ## Proposal
 
 ### Design
 
-#### Constraints
-
-From [Jake's post](https://jakearchibald.com/2018/when-packages-go-bad/) : 
-
-> Perhaps apps that deal with user data, especially passwords and finances should audit every package, and every change to those packages. Perhaps we need some kind of chain-of-trust for audited packages. But we don't have that, and for most of us, auditing all packages is a non-starter.
-
-> For sites with a server component and database, it feels negligent to use packages you haven't audited. With Copay, we've seen that attacks like this aren't theoretical, yet the auditing task feels insurmountable.
-
-The suggested solution here is to audit all packages. As explained, this is a massive amount of manual work to be performed by humans. 
-Not only this doesn't feel sustainable for one person or small team to do this work, but it may fail, because when facing a large amount of work, people get lazy, tired, make mistakes. Auditing does not scale in quantity or quality.
-
-**A solution should not require massive human work**
-
-**Ideally, it would increase security (or rather decrease insecurity) with zero effort to most people most of the time**
-
-(here "effort" = rewrite of modify existing packages)
-
-
-#### Proposal
-
 The heart of the proposal is:
-- **each package has a declaration** of what it wants to access (only what the own package code wants, not its dependencies)
+- **each (package, version) has a static declaration** of what it wants to access (only what the own package code wants, not its dependencies)
 - **a custom module loader** which 1) reads the declared wanted capabilities before loading the package modules 2) loads the package modules with these capabilities and **no other**
 
 The "package" granularity is chosen as **"module group"** for now, but does not close the door for a different definition of "module group" later
 
 
-##### A package declarating what it wants to access
+#### A package declarating what it wants to access
 
 **For the MVP**, let's have per-package declarations for:
 - Node.js built-in modules
@@ -71,89 +52,86 @@ The "package" granularity is chosen as **"module group"** for now, but does not 
     - until the "override mistake" is [fixed](https://github.com/tc39/ecma262/pull/1320), freezing the primordials won't be possible. Probably do the thing with the getter/setters in the built-in prototypes
 
 
-Finer grain granularity can be added at a later time if needed:
-- per built-in function
-- file limitations to `fs`
-    - maybe special keywords for project files, other dependency files, package.json, /home, /tmp, /dev, /proc, etc.
-- protocol/IP address/DNS domain whitelists/blacklists to `net` functions
-- grant to a direct dependency less authority than it asks (like it asks for `fs` on the entire filesystem and you grant it only access to the project files)
-
-
 ### Implementation
 
-Let's try to build this minial version on top of the [realm shim](https://github.com/tc39/proposal-realms)
+Let's try to build this minimal version on top of the [realm shim](https://github.com/tc39/proposal-realms)
+
+CommonJS's `require` function in modules will:
+- lookup which package this module belongs to
+    - if there is no declaration
+        - load the module with full authority
+    - if there is a declaration
+        - act normal is the dependency is listed in the declaration
+        - throw if it isn't
+- a module is loaded in a realm corresponding to the one declared in the declaration
+
+
 
 
 ### Deployment
 
-#### Who does package declaration?
+The loader implementation is a matter of writing and maintaining code which should take little time to a team with knowledge in this area
 
-> each package has a declaration of what it wants to access
+The per-(package, version) declarations provide a different challenge. Writing the declaration for all or even most npm packages is going to take some work
 
-Writing the declaration is going to take some work
+One idea is to have the author of a package to do it alongside the package, but they may ask extraneous authority that a dependent user may not want to grant\
+The author may also not consent to do this work
 
-I see this situation being equivalent to [TypeScript declaration files](https://www.typescriptlang.org/docs/handbook/declaration-files/publishing.html):
-- [either the package author documents it](https://www.typescriptlang.org/docs/handbook/declaration-files/publishing.html)
-- or there is a [community effort](https://github.com/DefinitelyTyped/DefinitelyTyped) to create declarations(https://github.com/DefinitelyTyped/DefinitelyTyped) for packages that have none
+The situation looks similar to [TypeScript declaration files](https://www.typescriptlang.org/docs/handbook/declaration-files/publishing.html)
+In this situation, an elegant solution was found: an [open source community-contributed github repository](https://github.com/DefinitelyTyped/DefinitelyTyped)
 
-The custom module loader prefers the package own declaration over the community one, tooling can help find mismatches
+We can start like this too. The people who care about this sort of security maintain an open source resource with declarations.
 
-With the declaration following versionning, tooling can find declaration changes and notify the package users
+Among the benefits:
+- full-history of changes (git) + high resistance to history rewrites (git)
+- community reviews (github pull requests and email notification)
+- easy fork in case of disagreement (git)
+- contribution process already well-known to lots of developers
+- declarations can be added gradually per-package. Security is increased with each new declaration. When finer-granularity comes, it can be added gradually by the community too
 
-If a package goes unmaintained, the community can still write its capability declaration without coordination with the gone-maintainer
-
-Very much like typescipt type declarations, the community effort can happen gradually. Outside contributors can also contribute declarations as a pull request to open source packages of maintained projects
-
-
-##### Helping package maintainers maintain their declarations
-
-A tool could do static analysis and help maintainers generate a first version of their declarations as well as tell them when they have change their code in a way that requires changing the declaration to keep working
-
-It is anticipated that packages that have a clearly defined purpose (most npm modules) should have their declaration fairly stable : you wouldn't expect lodash to ask for `fs` in version 1, then `fs`+`net` in version 2 then `net`+`child_process` in version 3
+For the MVP, let's create **one repo and hardcode its location in the loader**. Let's make the **loader configurable** as to which source of declarations it uses (local or remote) later though
 
 
-#### What if a package has no declaration?
+#### Amount of work for a security audit
 
-There is a balance to be found between security and ergonomics and this balance can evolve over time and be different from context to context
+For an Node.js app developer, the amount of security review needed falls from "having to review all code of every dependency in the dependency DAG" to "review all declarations for which packages have dangerous permissions (which can be automated) and code review of the few packages which do have dangerous authority being granted"
 
-Running no-declaration packages with zero privilege offers maximum security but will make them often useless and prevent our app from running
-Running no-declaration packages with all privileges allows for apps that depend on it to run with no different preserves the risks of today
-
-To create as little friction as possible, the loader would run the package with full access\
-An opt-in could run the same package with zero capabilities, or a default set considered safe (safer than the current full-access situation)
-
-This would still be better than the current situation since there would be less security risks from package that declare what they want to access
-
-Tooling like `npm audit` could analyse all the dependency tree of a project and alert about packages that have no declaration
-
-Likewise, tooling could warn the user if a package is asking for suspicious permissions and that's what would remain of the auditing work
+When doing updating dependencies, a new tool to assess whether changing of version will increase permissions. They can have a chance to review the new permissions if they want to. This can be coupled to something like `greenkeeper` as well
 
 
-#### Custom loader deployment
+#### (beyond MVP) Automated declarations
 
-An open source node module loader can be deployed and used by everyone without needing Node.js or npm permission. A bit like `esm`
+As long as the granularity of permissions declared is the Node built-in module, it should be possible to write a static analysis tool that outputs a package declaration automatically
 
-If there is interest, this work can be embedded in node.js or npm/tink as default behavior. npm could display on its website whether a package has a declaration and the permission it asks for. On the CLI, before a package is published, they could emit a warning to the package author when they have no declaration
 
 
 ## Roadmap
 
-### Raw demo
+### MPV
+
+#### Raw demo
 
 - Implement test cases of fake but clearly demonstrated minimal attacks that are aimed to be prevented by the MVP
-- Implement the custom loader for CommonJS specifically (ESMs will come later) that limits what can be loaded at the package/node built-in module granularity + frozen primorials
-- Show that it works
+- Implement the custom loader for CommonJS specifically that limits what can be loaded at the package/node built-in module granularity + frozen primorials
+- Define minimal declaration language
+- Write the declarations of the fake attack
+
+- reproduce event-stream incident
+- create declaration repo
+- modify loader to use the repo
+- prevent event-stream as it was deployed
 
 
-### Actual attacks demo
+### Beyond MPV
 
-- Find 3 actual attacks that happened and made the news and demonstrate that the system we provide would have prevented them
-    - flatmap-stream
+#### Actual attacks demo
+
+- Find 2 other actual attacks that happened and made the news and demonstrate that the system described here would have prevented them
     - ?
     - ?
 
 
-### Scale
+#### Scale
 
 - Protect literally every deep dependency used by the work in the previous phases
     - Proves that the MVP works at scale
@@ -177,6 +155,18 @@ If there is interest, this work can be embedded in node.js or npm/tink as defaul
 ### Wait and see
 
 ...
+
+
+
+## Future work
+
+
+Finer grain granularity can be added at a later time if needed:
+- per built-in function
+- file limitations to `fs`
+    - maybe special keywords for project files, other dependency files, package.json, /home, /tmp, /dev, /proc, etc.
+- protocol/IP address/DNS domain whitelists/blacklists to `net` functions
+- grant to a direct dependency less authority than it asks (like it asks for `fs` on the entire filesystem and you grant it only access to the project files)
 
 
 ## Licence
